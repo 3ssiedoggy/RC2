@@ -2,53 +2,78 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>DJI RC2 WebAPK Installer</title>
+  <title>DJI RC2 APK Installer</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 480px; margin: 40px auto; padding: 0 20px; }
-    button { margin: 8px 0; padding: 10px 20px; font-size: 16px; width: 100%; text-align: left; }
-    #status { margin-top: 16px; min-height: 40px; }
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    button { margin: 8px 0; padding: 10px 20px; font-size: 16px; }
+    #status { margin-top: 20px; font-weight: bold; }
+    #popup {
+      display: none;
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #222;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 5px;
+      z-index: 9999;
+    }
   </style>
 </head>
 <body>
-  <h1>DJI RC2 WebAPK Installer</h1>
-  <button id="connect">Connect DJI RC2</button>
-  <div id="status"></div>
 
-  <div id="apk-list"></div>
+  <h1>DJI RC2 APK Installer</h1>
+  <button id="connectBtn">Connect DJI RC2</button>
+  <div id="status"></div>
+  <div id="apkList"></div>
+
+  <div id="popup">Press ACCEPT on the DJI RC2</div>
 
   <script type="module">
-    import { AdbWebUsbBackend, Adb } from "https://cdn.skypack.dev/@yume-chan/adb-webusb";
-    import { install } from "https://cdn.skypack.dev/@yume-chan/adb-install";
+    import { AdbWebUsbBackend, Adb, install } from "https://cdn.jsdelivr.net/npm/@yume-chan/ya-webadb@0.15.0/dist/esm/index.js";
 
-    const connectBtn = document.getElementById('connect');
+    const connectBtn = document.getElementById('connectBtn');
     const statusDiv = document.getElementById('status');
-    const apkListDiv = document.getElementById('apk-list');
+    const apkListDiv = document.getElementById('apkList');
+    const popup = document.getElementById('popup');
 
     let adb = null;
 
-    // *** Replace these with your actual APK file names you upload to your GitHub Pages apks/ folder ***
+    // List your APKs here — names and URLs relative to your GitHub Pages root
     const apkList = [
-      { name: "S9 Launcher", url: "apks/S9Launcher.apk" },
-      { name: "Task Bar", url: "apks/TaskBar.apk" },
-      { name: "Spotify", url: "apks/Spotify.apk" },
+      { name: "VLC Player", url: "apks/vlc.apk" },
+      { name: "File Manager", url: "apks/file_manager.apk" },
+      { name: "APKPure", url: "apks/apkpure.apk" },
     ];
 
-    connectBtn.onclick = async () => {
-      try {
-        statusDiv.textContent = "Requesting device... Please press ACCEPT on the DJI RC2.";
-        const backend = await AdbWebUsbBackend.requestDevice();
-        adb = await Adb.connect(backend);
-        statusDiv.textContent = "Connected to DJI RC2!";
-      } catch (e) {
-        statusDiv.textContent = "Connection failed: " + e.message;
-      }
-    };
+    function logStatus(msg) {
+      console.log(msg);
+      statusDiv.textContent = msg;
+    }
 
-    function renderApkList() {
-      if (apkList.length === 0) {
-        apkListDiv.innerHTML = "<p>No APKs available.</p>";
-        return;
+    function showPopup(show) {
+      popup.style.display = show ? 'block' : 'none';
+    }
+
+    async function connectDevice() {
+      try {
+        showPopup(true);
+        logStatus("Requesting device... Please press ACCEPT on the DJI RC2.");
+        // DJI vendorId 0x2ca3 filter, adjust if needed
+        const backend = await AdbWebUsbBackend.requestDevice({ filters: [{ vendorId: 0x2ca3 }] });
+        adb = await Adb.connect(backend);
+        showPopup(false);
+        logStatus("Connected to DJI RC2!");
+        renderApkButtons();
+      } catch (e) {
+        showPopup(false);
+        logStatus("Connection failed: " + e.message);
+        console.error(e);
       }
+    }
+
+    function renderApkButtons() {
       apkListDiv.innerHTML = "<p><strong>Available APKs:</strong></p>";
       apkList.forEach(({ name, url }) => {
         const btn = document.createElement('button');
@@ -60,22 +85,25 @@
 
     async function installApk(url, name) {
       if (!adb) {
-        alert('Please connect your DJI RC2 device first!');
+        alert("Please connect your DJI RC2 device first!");
         return;
       }
-      statusDiv.textContent = `Downloading and installing ${name}...`;
+      logStatus(`Downloading and installing ${name}...`);
       try {
         const response = await fetch(url);
-        if (!response.ok) throw new Error(`Failed to fetch ${name}`);
+        if (!response.ok) throw new Error(`Failed to fetch ${name} (${response.status})`);
         const buffer = await response.arrayBuffer();
         await install(adb, new Uint8Array(buffer));
-        statusDiv.textContent = `${name} installed successfully!`;
+        logStatus(`${name} installed successfully!`);
       } catch (e) {
-        statusDiv.textContent = `Install failed: ${e.message}`;
+        logStatus(`Install failed: ${e.message}`);
+        console.error(e);
       }
     }
 
-    renderApkList();
+    connectBtn.addEventListener('click', connectDevice);
+
   </script>
+
 </body>
 </html>
