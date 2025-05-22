@@ -1,109 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>DJI RC2 APK Installer</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    button { margin: 8px 0; padding: 10px 20px; font-size: 16px; }
-    #status { margin-top: 20px; font-weight: bold; }
-    #popup {
-      display: none;
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #222;
-      color: white;
-      padding: 10px 20px;
-      border-radius: 5px;
-      z-index: 9999;
-    }
-  </style>
+<meta charset="UTF-8" />
+<title>WebUSB DJI RC2 Test</title>
 </head>
 <body>
-
-  <h1>DJI RC2 APK Installer</h1>
-  <button id="connectBtn">Connect DJI RC2</button>
+  <h1>Test WebUSB Connect</h1>
+  <button id="connectBtn">Connect DJI RC2 (no filters)</button>
   <div id="status"></div>
-  <div id="apkList"></div>
-
-  <div id="popup">Press ACCEPT on the DJI RC2</div>
 
   <script type="module">
-    import { AdbWebUsbBackend, Adb, install } from "https://cdn.jsdelivr.net/npm/@yume-chan/ya-webadb@0.15.0/dist/esm/index.js";
+    import { AdbWebUsbBackend, Adb } from "https://unpkg.com/@yume-chan/ya-webadb@0.15.0/dist/esm/index.js";
 
     const connectBtn = document.getElementById('connectBtn');
     const statusDiv = document.getElementById('status');
-    const apkListDiv = document.getElementById('apkList');
-    const popup = document.getElementById('popup');
 
-    let adb = null;
-
-    // List your APKs here — names and URLs relative to your GitHub Pages root
-    const apkList = [
-      { name: "VLC Player", url: "apks/vlc.apk" },
-      { name: "File Manager", url: "apks/file_manager.apk" },
-      { name: "APKPure", url: "apks/apkpure.apk" },
-    ];
-
-    function logStatus(msg) {
-      console.log(msg);
-      statusDiv.textContent = msg;
-    }
-
-    function showPopup(show) {
-      popup.style.display = show ? 'block' : 'none';
-    }
-
-    async function connectDevice() {
+    connectBtn.addEventListener('click', async () => {
+      statusDiv.textContent = "Requesting device...";
       try {
-        showPopup(true);
-        logStatus("Requesting device... Please press ACCEPT on the DJI RC2.");
-        // DJI vendorId 0x2ca3 filter, adjust if needed
-        const backend = await AdbWebUsbBackend.requestDevice({ filters: [{ vendorId: 0x2ca3 }] });
-        adb = await Adb.connect(backend);
-        showPopup(false);
-        logStatus("Connected to DJI RC2!");
-        renderApkButtons();
+        // No filters for max compatibility
+        const backend = await AdbWebUsbBackend.requestDevice();
+        statusDiv.textContent = "Device connected!";
+        const adb = await Adb.connect(backend);
+        statusDiv.textContent = "ADB connected!";
       } catch (e) {
-        showPopup(false);
-        logStatus("Connection failed: " + e.message);
+        statusDiv.textContent = "Failed: " + e.message;
         console.error(e);
       }
-    }
-
-    function renderApkButtons() {
-      apkListDiv.innerHTML = "<p><strong>Available APKs:</strong></p>";
-      apkList.forEach(({ name, url }) => {
-        const btn = document.createElement('button');
-        btn.textContent = `Install: ${name}`;
-        btn.onclick = () => installApk(url, name);
-        apkListDiv.appendChild(btn);
-      });
-    }
-
-    async function installApk(url, name) {
-      if (!adb) {
-        alert("Please connect your DJI RC2 device first!");
-        return;
-      }
-      logStatus(`Downloading and installing ${name}...`);
-      try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`Failed to fetch ${name} (${response.status})`);
-        const buffer = await response.arrayBuffer();
-        await install(adb, new Uint8Array(buffer));
-        logStatus(`${name} installed successfully!`);
-      } catch (e) {
-        logStatus(`Install failed: ${e.message}`);
-        console.error(e);
-      }
-    }
-
-    connectBtn.addEventListener('click', connectDevice);
-
+    });
   </script>
-
 </body>
 </html>
